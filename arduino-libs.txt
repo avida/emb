@@ -1,0 +1,4 @@
+# List Arduino library names (one per line) to compile and add to include paths.
+# Example:
+# Servo
+# LiquidCrystal

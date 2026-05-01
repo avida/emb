@@ -1,0 +1,158 @@
+# Embedded C/C++ Project (CMake)
+
+This project provides a clean CMake-based structure for building firmware for ARM Cortex-M and AVR (ATmega) microcontrollers. It is designed to integrate Arduino core source code while keeping full control over the build.
+
+## Prerequisites
+
+- CMake 3.20+
+- GNU Arm Embedded Toolchain (`arm-none-eabi-gcc`)
+- AVR-GCC toolchain (`avr-gcc`)
+- Ninja build tool (recommended for presets: `sudo apt install ninja-build`)
+- Arduino core source files (optional)
+
+## Project Layout
+
+- `cmake/toolchains/arm-gcc.cmake` - ARM GCC toolchain
+- `cmake/toolchains/avr-gcc.cmake` - AVR GCC toolchain
+- `cmake/arduino.cmake` - Arduino core integration helper
+- `src/common/main.cpp` - Firmware entry point
+
+## Build: AVR (ATmega)
+
+```sh
+cmake -S . -B build-avr \
+  -DCMAKE_TOOLCHAIN_FILE=cmake/toolchains/avr-gcc.cmake \
+  -DAVR_MCU=atmega168 \
+  -DAVR_F_CPU=16000000UL
+cmake --build build-avr
+```
+
+To build for ATmega328P, change `-DAVR_MCU=atmega328p`.
+
+### Short Commands (CMake Presets)
+
+If you want short commands, use presets:
+
+Note: The presets work best with Ninja installed (`sudo apt install ninja-build`).
+
+```sh
+cmake --preset avr-168
+cmake --build --preset avr-168
+```
+
+For ATmega328P:
+
+```sh
+cmake --preset avr-328p
+cmake --build --preset avr-328p
+```
+
+### Upload (AVR)
+
+After building, upload with the `upload` target (auto-detects a single `/dev/ttyUSB*` or `/dev/ttyACM*`).
+
+```sh
+cmake --build --preset avr-168
+cmake --build --preset avr-168 --target upload
+```
+
+Defaults: `AVRDUDE_PROGRAMMER=avrisp`, `AVRDUDE_BAUD=19200`.
+
+### Serial Monitor (AVR)
+
+Start a serial monitor (default: `stty` + `cat` at 57600):
+
+```sh
+cmake --build --preset avr-168 --target monitor
+```
+
+Upload then monitor:
+
+```sh
+cmake --build --preset avr-168 --target upload_monitor
+```
+
+To change monitor tool or baud:
+
+```sh
+cmake --preset avr-168 -DSERIAL_TOOL=picocom -DSERIAL_BAUD=57600
+cmake --build --preset avr-168 --target monitor
+```
+
+If you have multiple serial ports, set one explicitly:
+
+```sh
+cmake --preset avr-168 -DAVRDUDE_PORT=/dev/ttyUSB0
+cmake --build --preset avr-168 --target upload
+```
+
+To override programmer or upload baud:
+
+```sh
+cmake --preset avr-168 -DAVRDUDE_PROGRAMMER=arduino -DAVRDUDE_BAUD=57600
+cmake --build --preset avr-168 --target upload
+```
+
+For STM32F103:
+
+```sh
+cmake --preset arm-stm32f103
+cmake --build --preset arm-stm32f103
+```
+
+## Build: ARM Cortex-M
+
+You must provide a linker script for ARM targets.
+
+```sh
+cmake -S . -B build-arm \
+  -DCMAKE_TOOLCHAIN_FILE=cmake/toolchains/arm-gcc.cmake \
+  -DARM_CPU=cortex-m3 \
+  -DARM_MCU=stm32f103
+cmake --build build-arm
+```
+
+The STM32F103 example uses the in-repo linker script and startup file. Adjust memory sizes in the linker script if your exact part differs.
+
+For STM32F411, you will need a different linker script and startup file; see the Notes section.
+
+## Arduino Core Integration (AVR)
+
+AVR builds expect the Arduino core sources and include paths. You can provide the core path and (optionally) the variant path manually, or use the sync script below to auto-detect them.
+
+```sh
+cmake -S . -B build-avr \
+  -DCMAKE_TOOLCHAIN_FILE=cmake/toolchains/avr-gcc.cmake \
+  -DARDUINO_CORE_PATH=/absolute/path/to/arduino/hardware/arduino/avr/cores/arduino \
+  -DARDUINO_VARIANT_PATH=/absolute/path/to/arduino/hardware/arduino/avr/variants/standard
+cmake --build build-avr
+```
+
+## Arduino Libraries via Arduino CLI
+
+This project keeps CMake as the build tool, while Arduino CLI manages library downloads. After installing libraries with Arduino CLI, run the sync script to add include paths and compile sources.
+
+1) Install libraries:
+
+```sh
+arduino-cli lib install <LibraryName>
+```
+
+2) List libraries to compile in `arduino-libs.txt` (one per line).
+
+3) Sync into CMake + VS Code:
+
+```sh
+python3 tools/sync_arduino_libs.py
+```
+
+The script generates `cmake/arduino_libs.cmake` and updates `.vscode/c_cpp_properties.json` ("Arduino" configuration).
+It also adds Arduino AVR core include paths (from `arduino:avr`) and writes `ARDUINO_CORE_PATH` / `ARDUINO_VARIANT_PATH` into `cmake/arduino_libs.cmake` if found in the Arduino CLI data directory.
+
+## Notes
+
+- For ARM targets, you typically need a startup file and linker script for your specific MCU.
+- The STM32F103 sample files live under `src/arm/stm32f103/` and are a starting point, not production-ready.
+- For STM32F411, add a new `src/arm/stm32f411/` with its own startup file and linker script, then set `-DARM_MCU=stm32f411` and `-DLINKER_SCRIPT=...`.
+- For AVR targets, the AVR-GCC toolchain provides the standard linker specs per MCU.
+- Convert the output to HEX/BIN with `objcopy` if needed.

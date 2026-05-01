@@ -1,0 +1,15 @@
+# Build outputs
+build-*/
+
+# Generated CMake files
+cmake/arduino_libs.cmake
+
+# VS Code generated config
+.vscode/c_cpp_properties.json
+
+# Firmware artifacts
+firmware.hex
+
+# Misc
+*.log
+.cache/

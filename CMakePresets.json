@@ -1,0 +1,54 @@
+{
+  "version": 3,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 20,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "avr-168",
+      "displayName": "AVR ATmega168",
+      "binaryDir": "${sourceDir}/build-avr-168",
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/cmake/toolchains/avr-gcc.cmake",
+        "AVR_MCU": "atmega168",
+        "AVR_F_CPU": "16000000UL"
+      }
+    },
+    {
+      "name": "avr-328p",
+      "displayName": "AVR ATmega328P",
+      "binaryDir": "${sourceDir}/build-avr-328p",
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/cmake/toolchains/avr-gcc.cmake",
+        "AVR_MCU": "atmega328p",
+        "AVR_F_CPU": "16000000UL"
+      }
+    },
+    {
+      "name": "arm-stm32f103",
+      "displayName": "ARM STM32F103",
+      "binaryDir": "${sourceDir}/build-arm-f103",
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/cmake/toolchains/arm-gcc.cmake",
+        "ARM_CPU": "cortex-m3",
+        "ARM_MCU": "stm32f103"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "avr-168",
+      "configurePreset": "avr-168"
+    },
+    {
+      "name": "avr-328p",
+      "configurePreset": "avr-328p"
+    },
+    {
+      "name": "arm-stm32f103",
+      "configurePreset": "arm-stm32f103"
+    }
+  ]
+}
