@@ -184,6 +184,34 @@ python3 tools/sync_arduino_libs.py
 The script generates `cmake/arduino_libs.cmake` and updates `.vscode/c_cpp_properties.json` ("Arduino" configuration).
 It also adds Arduino AVR core include paths (from `arduino:avr`) and writes `ARDUINO_CORE_PATH` / `ARDUINO_VARIANT_PATH` into `cmake/arduino_libs.cmake` if found in the Arduino CLI data directory.
 
+## Helper Script: build.sh
+
+A convenience script `build.sh` is provided to simplify common tasks. It wraps the CMake build, upload, and monitor commands for AVR firmware projects.
+
+**Usage:**
+
+```sh
+./build.sh <target>
+```
+- Builds, uploads, and starts the serial monitor for the given target (e.g., `hamster`, `sunflower`).
+
+```sh
+./build.sh clean
+```
+- Cleans all build outputs (equivalent to `cmake --build <build-dir> --target clean`).
+
+**Tab Completion:**
+- Bash completion hints are available. Source `build.sh.completion` in your shell or add it to your `.bashrc` for autocompletion of targets and the `clean` command.
+
+**Examples:**
+```sh
+./build.sh hamster      # Build, upload, and monitor hamster firmware
+./build.sh sunflower   # Build, upload, and monitor sunflower firmware
+./build.sh clean       # Clean all build outputs
+```
+
+See the script for more details or to add new targets.
+
 ## Notes
 
 - For ARM targets, you typically need a startup file and linker script for your specific MCU.
