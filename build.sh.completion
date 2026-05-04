@@ -1,0 +1,16 @@
+# bash completion for build.sh
+_build_sh_completions()
+{
+    local cur prev opts
+    COMPREPLY=()
+    cur="${COMP_WORDS[COMP_CWORD]}"
+    opts="hamster sunflower"
+
+    if [[ ${COMP_CWORD} == 1 ]] ; then
+        COMPREPLY=( $(compgen -W "${opts}" -- ${cur}) )
+    fi
+    return 0
+}
+
+complete -F _build_sh_completions ./build.sh
+complete -F _build_sh_completions build.sh
