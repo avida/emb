@@ -43,8 +43,28 @@
       "configurePreset": "avr-168"
     },
     {
+      "name": "avr-168-all",
+      "configurePreset": "avr-168",
+      "targets": ["firmware_all"]
+    },
+    {
+      "name": "avr-168-default",
+      "configurePreset": "avr-168",
+      "targets": ["firmware_default"]
+    },
+    {
       "name": "avr-328p",
       "configurePreset": "avr-328p"
+    },
+    {
+      "name": "avr-328p-all",
+      "configurePreset": "avr-328p",
+      "targets": ["firmware_all"]
+    },
+    {
+      "name": "avr-328p-default",
+      "configurePreset": "avr-328p",
+      "targets": ["firmware_default"]
     },
     {
       "name": "arm-stm32f103",

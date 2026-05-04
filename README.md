@@ -15,7 +15,23 @@ This project provides a clean CMake-based structure for building firmware for AR
 - `cmake/toolchains/arm-gcc.cmake` - ARM GCC toolchain
 - `cmake/toolchains/avr-gcc.cmake` - AVR GCC toolchain
 - `cmake/arduino.cmake` - Arduino core integration helper
-- `src/common/main.cpp` - Firmware entry point
+- `projects/<name>/main.c` - Per-project entry point
+- `src/common/` - Shared code used by all projects
+
+## Multi-Project Build Model
+
+- Each firmware project must live in `projects/<project-name>/`.
+- Each project directory must contain `main.c`.
+- Shared code goes in `src/common/` and is compiled into every project target.
+
+CMake auto-discovers all projects under `projects/`.
+
+Generated target names:
+
+- `firmware_<project-name>` for each project
+- `firmware_all` to build all discovered projects
+
+To configure only one project, set `EMB_PROJECT=<project-name>`.
 
 ## Build: AVR (ATmega)
 
@@ -24,10 +40,27 @@ cmake -S . -B build-avr \
   -DCMAKE_TOOLCHAIN_FILE=cmake/toolchains/avr-gcc.cmake \
   -DAVR_MCU=atmega168 \
   -DAVR_F_CPU=16000000UL
-cmake --build build-avr
+cmake --build build-avr --target firmware_all
 ```
 
 To build for ATmega328P, change `-DAVR_MCU=atmega328p`.
+
+Build one project target:
+
+```sh
+cmake --build build-avr --target firmware_default
+```
+
+Configure for a single project only:
+
+```sh
+cmake -S . -B build-avr \
+  -DCMAKE_TOOLCHAIN_FILE=cmake/toolchains/avr-gcc.cmake \
+  -DAVR_MCU=atmega168 \
+  -DAVR_F_CPU=16000000UL \
+  -DEMB_PROJECT=default
+cmake --build build-avr
+```
 
 ### Short Commands (CMake Presets)
 
@@ -37,24 +70,26 @@ Note: The presets work best with Ninja installed (`sudo apt install ninja-build`
 
 ```sh
 cmake --preset avr-168
-cmake --build --preset avr-168
+cmake --build --preset avr-168 --target firmware_all
 ```
 
 For ATmega328P:
 
 ```sh
 cmake --preset avr-328p
-cmake --build --preset avr-328p
+cmake --build --preset avr-328p --target firmware_all
 ```
 
 ### Upload (AVR)
 
-After building, upload with the `upload` target (auto-detects a single `/dev/ttyUSB*` or `/dev/ttyACM*`).
+After building, upload with the per-project upload target (auto-detects a single `/dev/ttyUSB*` or `/dev/ttyACM*`).
 
 ```sh
 cmake --build --preset avr-168
-cmake --build --preset avr-168 --target upload
+cmake --build --preset avr-168 --target upload_default
 ```
+
+Alias targets `upload`, `monitor`, and `upload_monitor` point to `EMB_UPLOAD_PROJECT` (defaults to first discovered project).
 
 Defaults: `AVRDUDE_PROGRAMMER=avrisp`, `AVRDUDE_BAUD=19200`.
 
