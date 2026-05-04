@@ -283,8 +283,10 @@ if(EMB_TARGET_FAMILY STREQUAL "avr")
         COMMENT "Starting serial monitor for ${_project_name}"
       )
 
+      # upload_monitor runs upload then monitor sequentially
       add_custom_target(upload_monitor_${_project_id}
-        DEPENDS upload_${_project_id} monitor_${_project_id}
+        COMMAND ${CMAKE_COMMAND} --build . --target upload_${_project_id}
+        COMMAND ${CMAKE_COMMAND} --build . --target monitor_${_project_id}
         COMMENT "Upload then monitor ${_project_name}"
       )
     endforeach()
@@ -295,9 +297,6 @@ if(EMB_TARGET_FAMILY STREQUAL "avr")
   endif()
 
   string(REGEX REPLACE "[^A-Za-z0-9_]" "_" _upload_project_id "${EMB_UPLOAD_PROJECT}")
-  if(TARGET upload_${_upload_project_id})
-    add_custom_target(upload DEPENDS upload_${_upload_project_id})
-  endif()
   if(TARGET monitor_${_upload_project_id})
     add_custom_target(monitor DEPENDS monitor_${_upload_project_id})
   endif()
