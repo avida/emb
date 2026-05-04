@@ -19,6 +19,8 @@ if(EXISTS "${CMAKE_SOURCE_DIR}/cmake/arduino_libs.cmake")
 endif()
 
 
+
+
 if(EMB_TARGET_FAMILY STREQUAL "avr")
   message(STATUS "ARDUINO_CORE_PATH=${ARDUINO_CORE_PATH}")
   if(NOT ARDUINO_CORE_PATH)
@@ -30,6 +32,40 @@ endif()
 add_executable(firmware
   src/common/main.cpp
 )
+
+# Add Arduino version defines after target is created
+if(EMB_TARGET_FAMILY STREQUAL "avr")
+  # Extract Arduino version from ARDUINO_CORE_PATH (e.g., .../avr/1.8.7/cores/arduino)
+  get_filename_component(_core_dir "${ARDUINO_CORE_PATH}" DIRECTORY)
+  get_filename_component(_avr_dir "${_core_dir}" DIRECTORY)
+  get_filename_component(_version_dir "${_avr_dir}" NAME)
+  set(ARDUINO_VERSION_STRING "${_version_dir}")
+  string(REPLACE "." ";" _ver_list "${ARDUINO_VERSION_STRING}")
+  list(GET _ver_list 0 ARDUINO_VERSION_MAJOR)
+  list(GET _ver_list 1 ARDUINO_VERSION_MINOR)
+  list(GET _ver_list 2 ARDUINO_VERSION_PATCH)
+  math(EXPR ARDUINO_VERSION "${ARDUINO_VERSION_MAJOR} * 10000 + ${ARDUINO_VERSION_MINOR} * 100 + ${ARDUINO_VERSION_PATCH}")
+  foreach(_tgt firmware arduino_libs)
+    if(TARGET ${_tgt})
+      target_compile_definitions(${_tgt} PRIVATE
+        ARDUINO=${ARDUINO_VERSION}
+        ARDUINO_AVR_BOARD=1
+        ARDUINO_ARCH_AVR
+        ARDUINO_VERSION_MAJOR=${ARDUINO_VERSION_MAJOR}
+        ARDUINO_VERSION_MINOR=${ARDUINO_VERSION_MINOR}
+        ARDUINO_VERSION_PATCH=${ARDUINO_VERSION_PATCH}
+      )
+      target_compile_options(${_tgt} PRIVATE -Os)
+      target_link_options(${_tgt} PRIVATE -Os)
+    endif()
+  endforeach()
+  # Only apply LTO to the final executable
+  if(TARGET firmware)
+    target_compile_options(firmware PRIVATE -flto)
+    target_link_options(firmware PRIVATE -flto)
+  endif()
+endif()
+
 
 target_compile_definitions(firmware PRIVATE
   $<$<STREQUAL:${EMB_TARGET_FAMILY},avr>:EMB_TARGET_AVR>

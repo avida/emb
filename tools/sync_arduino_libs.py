@@ -49,6 +49,31 @@ def load_installed_libs():
         path = item.get("path") or item.get("location") or item.get("install_dir")
         if name and path:
             libs[name.lower()] = Path(path)
+
+    # Also search in ~/Arduino/libraries
+    user_lib_dir = Path.home() / "Arduino" / "libraries"
+    if user_lib_dir.exists():
+        for lib_folder in user_lib_dir.iterdir():
+            if lib_folder.is_dir():
+                # Try to get library name from folder
+                lib_name = lib_folder.name.lower()
+                if lib_name not in libs:
+                    libs[lib_name] = lib_folder
+    # Also search for default libraries in packages/arduino/hardware/avr/<version>/libraries
+    data_dir = get_cli_data_dir()
+    avr_root = Path(data_dir) / "packages" / "arduino" / "hardware" / "avr"
+    if avr_root.exists():
+        versions = [p for p in avr_root.iterdir() if p.is_dir()]
+        if versions:
+            versions.sort()
+            version_dir = versions[-1]
+            default_libs_dir = version_dir / "libraries"
+            if default_libs_dir.exists():
+                for lib_folder in default_libs_dir.iterdir():
+                    if lib_folder.is_dir():
+                        lib_name = lib_folder.name.lower()
+                        if lib_name not in libs:
+                            libs[lib_name] = lib_folder
     return libs
 
 

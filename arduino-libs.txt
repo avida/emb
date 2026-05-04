@@ -2,3 +2,5 @@
 # Example:
 # Servo
 # LiquidCrystal
+Wire
+hd44780
