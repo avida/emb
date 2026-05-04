@@ -9,38 +9,77 @@ set -e
 CMD="$1"
 TARGET="$2"
 
-# List of supported targets (update as needed)
-TARGETS=(hamster sunflower)
+
+
+
+# List of supported projects and platforms (update as needed)
+PROJECTS=(hamster sunflower)
+PLATFORMS=(avr-168 avr-328p)
+
+
+
 
 function usage() {
-    echo "Usage: $0 <target> | clean"
-    echo "Available targets: ${TARGETS[*]}"
+    echo "Usage: $0 <project> [platform] | clean"
+    echo "Available projects: ${PROJECTS[*]}"
+    echo "Available platforms: ${PLATFORMS[*]} (default: avr-168)"
     exit 1
 }
 
-BUILD_DIR="build-avr-168"
 
-if [[ -z "$CMD" ]]; then
-    usage
-fi
 
+
+
+# Clean command
 if [[ "$CMD" == "clean" ]]; then
     echo "Cleaning all targets..."
-    cmake --build "$BUILD_DIR" --target clean
+    for plat in "${PLATFORMS[@]}"; do
+        cmake --build --preset $plat --target clean 2>/dev/null || true
+    done
     exit 0
 fi
 
-TARGET="$CMD"
-if [[ ! " ${TARGETS[@]} " =~ " $TARGET " ]]; then
-    echo "Unknown target: $TARGET"
+# Default project/platform
+PROJECT="$CMD"
+PLATFORM="$TARGET"
+if [[ -z "$PROJECT" ]]; then
+    usage
+fi
+if [[ -z "$PLATFORM" ]]; then
+    PLATFORM="avr-168"
+fi
+
+# Validate project
+if [[ ! " ${PROJECTS[@]} " =~ " $PROJECT " ]]; then
+    echo "Unknown project: $PROJECT"
+    usage
+fi
+# Validate platform
+if [[ ! " ${PLATFORMS[@]} " =~ " $PLATFORM " ]]; then
+    echo "Unknown platform: $PLATFORM"
     usage
 fi
 
-# Build firmware
-cmake --build "$BUILD_DIR" --target firmware_$TARGET
 
-# Upload firmware
-cmake --build "$BUILD_DIR" --target upload_$TARGET
+if [[ "$CMD" == "clean" ]]; then
+    echo "Cleaning all targets..."
+    cmake --build --preset avr-168 --target clean
+    cmake --build --preset avr-328p --target clean 2>/dev/null || true
+    exit 0
+fi
 
-# Start monitor
-cmake --build "$BUILD_DIR" --target monitor_$TARGET
+# Ensure build directory exists for the platform
+BUILD_DIR="build-$PLATFORM"
+if [[ ! -d "$BUILD_DIR" ]]; then
+    echo "Configuring build directory for $PLATFORM..."
+    cmake --preset $PLATFORM
+fi
+
+# Build firmware for project
+cmake --build --preset $PLATFORM --target firmware_$PROJECT
+
+# Upload firmware for project
+cmake --build --preset $PLATFORM --target upload_$PROJECT
+
+# Start monitor for project
+cmake --build --preset $PLATFORM --target monitor_$PROJECT
