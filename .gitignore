@@ -13,3 +13,4 @@ firmware.hex
 # Misc
 *.log
 .cache/
+projects/*/target

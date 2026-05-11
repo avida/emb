@@ -50,8 +50,11 @@ fn main() -> Result<(), Box<dyn Error>> {
     let gpio = Gpio::new()?;
 
     dump_gpio_states(&gpio);
+    println!("GPIO dump done");
 
     let interrupt_pin = interrupt_pin_from_env();
+    println!("Selected interrupt pin: GPIO{}", interrupt_pin);
+    println!();
     let mut pin = gpio.get(interrupt_pin)?.into_input();
     pin.set_interrupt(Trigger::Both)?;
 
