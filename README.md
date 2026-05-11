@@ -2,6 +2,42 @@
 
 This project provides a clean CMake-based structure for building firmware for ARM Cortex-M and AVR (ATmega) microcontrollers. It is designed to integrate Arduino core source code while keeping full control over the build.
 
+## Installation
+
+1) Install CMake:
+
+```sh
+sudo apt update
+sudo apt install -y cmake
+```
+
+2) Install Arduino CLI into your home bin directory:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/arduino/arduino-cli/master/install.sh | BINDIR=~/local/bin sh
+```
+
+If needed, add `~/local/bin` to your `PATH`.
+
+3) Install Arduino AVR core:
+
+```sh
+arduino-cli core update-index
+arduino-cli core install arduino:avr
+```
+
+4) Install all required Arduino CLI libraries listed in `arduino-libs.txt`:
+
+```sh
+awk '!/^\s*#/ && NF { print }' arduino-libs.txt | xargs -r -n1 arduino-cli lib install
+```
+
+5) Install Raspberry Pi Rust cross-build prerequisites:
+
+```sh
+rustup target add arm-unknown-linux-musleabihf
+```
+
 ## Prerequisites
 
 - CMake 3.20+
@@ -133,6 +169,36 @@ For STM32F103:
 ```sh
 cmake --preset arm-stm32f103
 cmake --build --preset arm-stm32f103
+```
+
+## Raspberry Pi Rust Target
+
+A simple Rust application lives in `projects/raspi` and is exposed as the CMake target `raspi`.
+By default, this preset cross-builds a static binary for Raspberry Pi 1 using `arm-unknown-linux-musleabihf`.
+
+```sh
+cmake --preset raspi
+cmake --build --preset raspi
+```
+
+Built binary path:
+
+`projects/raspi/target/arm-unknown-linux-musleabihf/release/raspi`
+
+If you previously built the old glibc target (`arm-unknown-linux-gnueabihf`), clear stale artifacts before rebuilding:
+
+```sh
+rm -rf build-raspi projects/raspi/target/arm-unknown-linux-gnueabihf
+cmake --preset raspi
+cmake --build --preset raspi
+```
+
+If you see `file in wrong format` from `/usr/bin/ld`, ensure the musl target uses `rust-lld` and reconfigure:
+
+```sh
+rm -rf build-raspi
+cmake --preset raspi
+cmake --build --preset raspi
 ```
 
 ## Build: ARM Cortex-M

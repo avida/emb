@@ -1,13 +1,27 @@
 # bash completion for build.sh
 _build_sh_completions()
 {
-    local cur prev opts
+    local cur prev opts platforms
     COMPREPLY=()
     cur="${COMP_WORDS[COMP_CWORD]}"
-    opts="hamster sunflower"
+    prev="${COMP_WORDS[COMP_CWORD-1]}"
+    opts="hamster sunflower raspi clean"
+    platforms="avr-168 avr-328p raspi"
 
     if [[ ${COMP_CWORD} == 1 ]] ; then
         COMPREPLY=( $(compgen -W "${opts}" -- ${cur}) )
+    elif [[ ${COMP_CWORD} == 2 ]] ; then
+        case "${prev}" in
+            hamster|sunflower)
+                COMPREPLY=( $(compgen -W "avr-168 avr-328p" -- ${cur}) )
+                ;;
+            raspi)
+                COMPREPLY=( $(compgen -W "raspi" -- ${cur}) )
+                ;;
+            *)
+                COMPREPLY=( $(compgen -W "${platforms}" -- ${cur}) )
+                ;;
+        esac
     fi
     return 0
 }

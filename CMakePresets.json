@@ -35,6 +35,17 @@
         "ARM_CPU": "cortex-m3",
         "ARM_MCU": "stm32f103"
       }
+    },
+    {
+      "name": "raspi",
+      "displayName": "Raspberry Pi Rust (cross, static musl)",
+      "binaryDir": "${sourceDir}/build-raspi",
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/cmake/toolchains/linux-host.cmake",
+        "RASPI_RUST_TARGET": "arm-unknown-linux-musleabihf",
+        "RASPI_RUST_LINKER": "rust-lld",
+        "RASPI_RUST_PROFILE": "release"
+      }
     }
   ],
   "buildPresets": [
@@ -69,6 +80,11 @@
     {
       "name": "arm-stm32f103",
       "configurePreset": "arm-stm32f103"
+    },
+    {
+      "name": "raspi",
+      "configurePreset": "raspi",
+      "targets": ["raspi"]
     }
   ]
 }

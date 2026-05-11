@@ -1,0 +1,7 @@
+[target.arm-unknown-linux-musleabihf]
+linker = "rust-lld"
+rustflags = [
+  "-C", "target-cpu=arm1176jzf-s",
+  "-C", "target-feature=+v6,+vfp2",
+  "-C", "target-feature=+crt-static",
+]

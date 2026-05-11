@@ -176,6 +176,48 @@ if(EMB_FIRMWARE_TARGETS)
   add_custom_target(firmware_all DEPENDS ${EMB_FIRMWARE_TARGETS})
 endif()
 
+set(RASPI_RUST_DIR "${CMAKE_SOURCE_DIR}/projects/raspi" CACHE PATH "Path to Raspberry Pi Rust project")
+if(EXISTS "${RASPI_RUST_DIR}/Cargo.toml")
+  set(RASPI_RUST_TARGET "arm-unknown-linux-musleabihf" CACHE STRING "Rust target triple for Raspberry Pi build (empty means native host build)")
+  set(RASPI_RUST_PROFILE "release" CACHE STRING "Rust profile for Raspberry Pi build (debug/release)")
+  set(RASPI_RUST_LINKER "rust-lld" CACHE STRING "Optional linker override for the selected Rust target")
+
+  set(_raspi_profile_arg)
+  if(RASPI_RUST_PROFILE STREQUAL "release")
+    set(_raspi_profile_arg --release)
+  endif()
+
+  set(_raspi_target_arg)
+  if(RASPI_RUST_TARGET)
+    set(_raspi_target_arg --target ${RASPI_RUST_TARGET})
+  endif()
+
+  set(_raspi_env CARGO_TERM_COLOR=always)
+  if(RASPI_RUST_TARGET AND RASPI_RUST_LINKER)
+    string(REPLACE "-" "_" _raspi_target_env "${RASPI_RUST_TARGET}")
+    string(TOUPPER "${_raspi_target_env}" _raspi_target_env)
+    list(APPEND _raspi_env "CARGO_TARGET_${_raspi_target_env}_LINKER=${RASPI_RUST_LINKER}")
+  endif()
+
+  find_program(CARGO_EXECUTABLE cargo)
+  if(CARGO_EXECUTABLE)
+    add_custom_target(raspi
+      COMMAND ${CMAKE_COMMAND} -E env
+        ${_raspi_env}
+        ${CARGO_EXECUTABLE} build --manifest-path "${RASPI_RUST_DIR}/Cargo.toml" ${_raspi_target_arg} ${_raspi_profile_arg}
+      WORKING_DIRECTORY "${RASPI_RUST_DIR}"
+      COMMENT "Building Raspberry Pi Rust app (${RASPI_RUST_PROFILE}) from ${RASPI_RUST_DIR}"
+      VERBATIM
+    )
+  else()
+    add_custom_target(raspi
+      COMMAND ${CMAKE_COMMAND} -E echo "cargo not found. Install Rust toolchain on the Raspberry Pi (https://rustup.rs/)."
+      COMMAND ${CMAKE_COMMAND} -E false
+      COMMENT "Building Raspberry Pi Rust app from ${RASPI_RUST_DIR}"
+    )
+  endif()
+endif()
+
 if(EMB_TARGET_FAMILY STREQUAL "avr")
   foreach(_firmware_target ${EMB_FIRMWARE_TARGETS})
     add_custom_command(
@@ -239,10 +281,11 @@ if(EMB_TARGET_FAMILY STREQUAL "avr")
     list(LENGTH _tty_all _tty_count)
     if(_tty_count EQUAL 1)
       list(GET _tty_all 0 AVRDUDE_PORT)
+      message(STATUS "Auto-detected serial port: ${AVRDUDE_PORT}")
     elseif(_tty_count EQUAL 0)
-      message(FATAL_ERROR "No serial ports found. Set AVRDUDE_PORT=/dev/ttyUSB0")
+      message(WARNING "No serial ports found. Firmware build will continue, but upload/monitor requires AVRDUDE_PORT (for example /dev/ttyUSB0).")
     else()
-      message(FATAL_ERROR "Multiple serial ports found: ${_tty_all}. Set AVRDUDE_PORT explicitly.")
+      message(WARNING "Multiple serial ports found: ${_tty_all}. Firmware build will continue, but upload/monitor requires AVRDUDE_PORT to be set explicitly.")
     endif()
   endif()
 
@@ -259,7 +302,7 @@ if(EMB_TARGET_FAMILY STREQUAL "avr")
       list(GET EMB_PROJECT_NAMES ${_idx} _project_name)
       string(REGEX REPLACE "[^A-Za-z0-9_]" "_" _project_id "${_project_name}")
 
-      if(ARDUINO_AVRDUDE)
+      if(ARDUINO_AVRDUDE AND AVRDUDE_PORT)
         add_custom_target(upload_${_project_id}
           COMMAND ${ARDUINO_AVRDUDE} ${_avrdude_conf_arg} -v -p ${AVR_MCU} -c ${AVRDUDE_PROGRAMMER} -P ${AVRDUDE_PORT} -b ${AVRDUDE_BAUD} -D -U flash:w:$<TARGET_FILE_DIR:${_firmware_target}>/${_firmware_target}.hex:i
           DEPENDS ${_firmware_target}
@@ -267,21 +310,29 @@ if(EMB_TARGET_FAMILY STREQUAL "avr")
         )
       else()
         add_custom_target(upload_${_project_id}
-          COMMAND ${CMAKE_COMMAND} -E echo "avrdude not found. Set ARDUINO_AVRDUDE or install avrdude."
+          COMMAND ${CMAKE_COMMAND} -E echo "Upload unavailable. Ensure avrdude is installed and set AVRDUDE_PORT (for example /dev/ttyUSB0)."
           COMMAND ${CMAKE_COMMAND} -E false
           COMMENT "Uploading ${_project_name} via avrdude"
         )
       endif()
 
-      add_custom_target(monitor_${_project_id}
-        COMMAND ${CMAKE_COMMAND} -E echo "Opening ${AVRDUDE_PORT} at ${SERIAL_BAUD} using ${SERIAL_TOOL}"
-        COMMAND ${CMAKE_COMMAND} -E chdir ${CMAKE_SOURCE_DIR} ${CMAKE_COMMAND} -E env
-          SERIAL_TOOL=${SERIAL_TOOL}
-          SERIAL_PORT=${AVRDUDE_PORT}
-          SERIAL_BAUD=${SERIAL_BAUD}
-          ${CMAKE_COMMAND} -P ${CMAKE_SOURCE_DIR}/cmake/serial_monitor.cmake
-        COMMENT "Starting serial monitor for ${_project_name}"
-      )
+      if(AVRDUDE_PORT)
+        add_custom_target(monitor_${_project_id}
+          COMMAND ${CMAKE_COMMAND} -E echo "Opening ${AVRDUDE_PORT} at ${SERIAL_BAUD} using ${SERIAL_TOOL}"
+          COMMAND ${CMAKE_COMMAND} -E chdir ${CMAKE_SOURCE_DIR} ${CMAKE_COMMAND} -E env
+            SERIAL_TOOL=${SERIAL_TOOL}
+            SERIAL_PORT=${AVRDUDE_PORT}
+            SERIAL_BAUD=${SERIAL_BAUD}
+            ${CMAKE_COMMAND} -P ${CMAKE_SOURCE_DIR}/cmake/serial_monitor.cmake
+          COMMENT "Starting serial monitor for ${_project_name}"
+        )
+      else()
+        add_custom_target(monitor_${_project_id}
+          COMMAND ${CMAKE_COMMAND} -E echo "Monitor unavailable. Set AVRDUDE_PORT (for example /dev/ttyUSB0)."
+          COMMAND ${CMAKE_COMMAND} -E false
+          COMMENT "Starting serial monitor for ${_project_name}"
+        )
+      endif()
 
       # upload_monitor runs upload then monitor sequentially
       add_custom_target(upload_monitor_${_project_id}
