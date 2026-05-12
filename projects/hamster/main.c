@@ -103,11 +103,12 @@ int main(void)
         } // hold in infinite loop
     }
     radio.setAutoAck(true); // Don't acknowledge arbitrary signals
+    radio.enableDynamicPayloads(); // Allow variable payload sizes
 
     // Configure RF24 as receiver
     uint8_t address[] = "abcde"; // Simple single-byte address for testing
     radio.setChannel(108); // Set to a less crowded channel (2.476 GHz)
-    radio.openReadingPipe(1, address);
+    radio.openReadingPipe(0, address);
     radio.setPALevel(RF24_PA_MIN);
     radio.setDataRate(RF24_1MBPS);
     radio.startListening();
