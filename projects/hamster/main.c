@@ -3,6 +3,13 @@
 #include <Arduino.h>
 #include <avr/interrupt.h>
 
+#include <SPI.h>
+#include "RF24.h"
+#define CE_PIN 7
+#define CSN_PIN 8
+// instantiate an object for the nRF24L01 transceiver
+RF24 radio(CE_PIN, CSN_PIN);
+
 #define INTERRUPT_PIN 2 // Digital pin 2 (INT0)
 
 volatile bool pin_high = false;
@@ -65,20 +72,74 @@ void setup_timer1_1ms()
     sei();
 }
 
+uint8_t encoded_details[43] = {0};
+
+void dumpRegData()
+{
+    for (uint8_t i = 0; i < 43; ++i)
+    {
+        Serial.print(encoded_details[i], HEX);
+        if (i < 42)
+            Serial.print(F(" "));
+    }
+}
+
 int main(void)
 {
     init();
     Serial.begin(57600);
     Serial.println("Hi");
 
-    setup_timer1_1ms();
+    // setup_timer1_1ms();
 
-    pinMode(INTERRUPT_PIN, INPUT);
-    attachInterrupt(digitalPinToInterrupt(INTERRUPT_PIN), handleInterrupt, RISING);
+    // pinMode(INTERRUPT_PIN, INPUT);
+    // attachInterrupt(digitalPinToInterrupt(INTERRUPT_PIN), handleInterrupt, RISING);
+
+    if (!radio.begin())
+    {
+        Serial.println(F("radio hardware is not responding!!"));
+        while (1)
+        {
+        } // hold in infinite loop
+    }
+    radio.setAutoAck(true); // Don't acknowledge arbitrary signals
+
+    // Configure RF24 as receiver
+    uint8_t address[] = "abcde"; // Simple single-byte address for testing
+    radio.setChannel(108); // Set to a less crowded channel (2.476 GHz)
+    radio.openReadingPipe(1, address);
+    radio.setPALevel(RF24_PA_MIN);
+    radio.setDataRate(RF24_1MBPS);
+    radio.startListening();
+
+    Serial.println(F("RF24 receiver initialized"));
 
     uint32_t last_print_count = 0;
+    uint8_t radio_buf[32] = {0};
+
     while (1)
     {
+        // Check for incoming radio data
+        if (radio.available())
+        {
+            uint8_t len = radio.getPayloadSize();
+            if (len > 32)
+                len = 32;
+            radio.read(radio_buf, len);
+            Serial.print(F("RX: "));
+            for (uint8_t i = 0; i < len; i++)
+            {
+                if (radio_buf[i] < 16)
+                    Serial.print(F("0"));
+                Serial.print(radio_buf[i], HEX);
+                if (i < len - 1)
+                    Serial.print(F(" "));
+            }
+            Serial.println();
+        } else {
+            Serial.print(F("No radio data. "));
+        }
+
         if (pin_high)
         {
             Serial.print(interrupt_count);
@@ -87,7 +148,7 @@ int main(void)
             pin_high = false;
             last_print_count = interrupt_count;
         }
-        delay(10);
+        delay(1000);
     }
 
     return 0;
