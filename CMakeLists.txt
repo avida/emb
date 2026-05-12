@@ -204,7 +204,8 @@ if(EMB_TARGET_FAMILY STREQUAL "avr")
 
   set(AVRDUDE_BAUD "19200" CACHE STRING "AVRDUDE baud rate")
   set(AVRDUDE_PROGRAMMER "avrisp" CACHE STRING "AVRDUDE programmer type")
-  set(AVRDUDE_PORT "" CACHE STRING "AVRDUDE port (auto-detected if empty)")
+  set(AVRDUDE_PORT "" CACHE STRING "[Deprecated] AVRDUDE port (use EMB_SERIAL_PORT)")
+  set(EMB_SERIAL_PORT "" CACHE STRING "Serial port for upload and monitor. Accepts full path (/dev/ttyUSB0) or numeric index (0, 1, ...)")
   set(SERIAL_TOOL "stty" CACHE STRING "Serial monitor tool (stty, screen, picocom, miniterm)")
   set(SERIAL_BAUD "57600" CACHE STRING "Serial monitor baud rate")
 
@@ -234,18 +235,44 @@ if(EMB_TARGET_FAMILY STREQUAL "avr")
     endif()
   endif()
 
-  if(NOT AVRDUDE_PORT)
-    file(GLOB _tty_usb "/dev/ttyUSB*")
-    file(GLOB _tty_acm "/dev/ttyACM*")
-    set(_tty_all ${_tty_usb} ${_tty_acm})
-    list(LENGTH _tty_all _tty_count)
-    if(_tty_count EQUAL 1)
-      list(GET _tty_all 0 AVRDUDE_PORT)
-      message(STATUS "Auto-detected serial port: ${AVRDUDE_PORT}")
-    elseif(_tty_count EQUAL 0)
-      message(WARNING "No serial ports found. Firmware build will continue, but upload/monitor requires AVRDUDE_PORT (for example /dev/ttyUSB0).")
+  file(GLOB _tty_usb "/dev/ttyUSB*")
+  file(GLOB _tty_acm "/dev/ttyACM*")
+  set(_tty_all ${_tty_usb} ${_tty_acm})
+  list(SORT _tty_all)
+  list(LENGTH _tty_all _tty_count)
+
+  set(_serial_port_raw "")
+  if(NOT "${EMB_SERIAL_PORT}" STREQUAL "")
+    set(_serial_port_raw "${EMB_SERIAL_PORT}")
+  elseif(AVRDUDE_PORT)
+    # Backward compatibility with existing workflows.
+    set(_serial_port_raw "${AVRDUDE_PORT}")
+  endif()
+
+  set(_serial_port "")
+  if(NOT "${_serial_port_raw}" STREQUAL "")
+    if(_serial_port_raw MATCHES "^[0-9]+$")
+      math(EXPR _serial_idx "${_serial_port_raw}")
+      if(_tty_count EQUAL 0)
+        message(FATAL_ERROR "EMB_SERIAL_PORT is set to index ${_serial_port_raw}, but no serial ports were found.")
+      endif()
+      if(_serial_idx LESS 0 OR _serial_idx GREATER_EQUAL _tty_count)
+        message(FATAL_ERROR "EMB_SERIAL_PORT index ${_serial_port_raw} is out of range. Found ${_tty_count} ports: ${_tty_all}")
+      endif()
+      list(GET _tty_all ${_serial_idx} _serial_port)
+      message(STATUS "Resolved EMB_SERIAL_PORT index ${_serial_port_raw} to ${_serial_port}")
     else()
-      message(WARNING "Multiple serial ports found: ${_tty_all}. Firmware build will continue, but upload/monitor requires AVRDUDE_PORT to be set explicitly.")
+      set(_serial_port "${_serial_port_raw}")
+    endif()
+  else()
+    if(_tty_count EQUAL 1)
+      list(GET _tty_all 0 _serial_port)
+      message(STATUS "Auto-detected serial port: ${_serial_port}")
+    elseif(_tty_count EQUAL 0)
+      message(WARNING "No serial ports found. Firmware build will continue, but upload/monitor requires EMB_SERIAL_PORT (path or index).")
+    else()
+      math(EXPR _tty_last_idx "${_tty_count} - 1")
+      message(WARNING "Multiple serial ports found: ${_tty_all}. Set EMB_SERIAL_PORT to a path or index (0..${_tty_last_idx}).")
     endif()
   endif()
 
@@ -262,33 +289,33 @@ if(EMB_TARGET_FAMILY STREQUAL "avr")
       list(GET EMB_PROJECT_NAMES ${_idx} _project_name)
       string(REGEX REPLACE "[^A-Za-z0-9_]" "_" _project_id "${_project_name}")
 
-      if(ARDUINO_AVRDUDE AND AVRDUDE_PORT)
+      if(ARDUINO_AVRDUDE AND _serial_port)
         add_custom_target(upload_${_project_id}
-          COMMAND ${ARDUINO_AVRDUDE} ${_avrdude_conf_arg} -v -p ${AVR_MCU} -c ${AVRDUDE_PROGRAMMER} -P ${AVRDUDE_PORT} -b ${AVRDUDE_BAUD} -D -U flash:w:$<TARGET_FILE_DIR:${_firmware_target}>/${_firmware_target}.hex:i
+          COMMAND ${ARDUINO_AVRDUDE} ${_avrdude_conf_arg} -v -p ${AVR_MCU} -c ${AVRDUDE_PROGRAMMER} -P ${_serial_port} -b ${AVRDUDE_BAUD} -D -U flash:w:$<TARGET_FILE_DIR:${_firmware_target}>/${_firmware_target}.hex:i
           DEPENDS ${_firmware_target}
           COMMENT "Uploading ${_project_name} via avrdude"
         )
       else()
         add_custom_target(upload_${_project_id}
-          COMMAND ${CMAKE_COMMAND} -E echo "Upload unavailable. Ensure avrdude is installed and set AVRDUDE_PORT (for example /dev/ttyUSB0)."
+          COMMAND ${CMAKE_COMMAND} -E echo "Upload unavailable. Ensure avrdude is installed and set EMB_SERIAL_PORT (for example /dev/ttyUSB0 or 0)."
           COMMAND ${CMAKE_COMMAND} -E false
           COMMENT "Uploading ${_project_name} via avrdude"
         )
       endif()
 
-      if(AVRDUDE_PORT)
+      if(_serial_port)
         add_custom_target(monitor_${_project_id}
-          COMMAND ${CMAKE_COMMAND} -E echo "Opening ${AVRDUDE_PORT} at ${SERIAL_BAUD} using ${SERIAL_TOOL}"
+          COMMAND ${CMAKE_COMMAND} -E echo "Opening ${_serial_port} at ${SERIAL_BAUD} using ${SERIAL_TOOL}"
           COMMAND ${CMAKE_COMMAND} -E chdir ${CMAKE_SOURCE_DIR} ${CMAKE_COMMAND} -E env
             SERIAL_TOOL=${SERIAL_TOOL}
-            SERIAL_PORT=${AVRDUDE_PORT}
+            SERIAL_PORT=${_serial_port}
             SERIAL_BAUD=${SERIAL_BAUD}
             ${CMAKE_COMMAND} -P ${CMAKE_SOURCE_DIR}/cmake/serial_monitor.cmake
           COMMENT "Starting serial monitor for ${_project_name}"
         )
       else()
         add_custom_target(monitor_${_project_id}
-          COMMAND ${CMAKE_COMMAND} -E echo "Monitor unavailable. Set AVRDUDE_PORT (for example /dev/ttyUSB0)."
+          COMMAND ${CMAKE_COMMAND} -E echo "Monitor unavailable. Set EMB_SERIAL_PORT (for example /dev/ttyUSB0 or 0)."
           COMMAND ${CMAKE_COMMAND} -E false
           COMMENT "Starting serial monitor for ${_project_name}"
         )

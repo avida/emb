@@ -86,7 +86,7 @@ cmake --build --preset avr-328p --target firmware_all
 
 ### Upload (AVR)
 
-After building, upload with the per-project upload target (auto-detects a single `/dev/ttyUSB*` or `/dev/ttyACM*`).
+After building, upload with the per-project upload target.
 
 ```sh
 cmake --build --preset avr-168
@@ -121,9 +121,18 @@ cmake --build --preset avr-168 --target monitor
 If you have multiple serial ports, set one explicitly:
 
 ```sh
-cmake --preset avr-168 -DAVRDUDE_PORT=/dev/ttyUSB0
+cmake --preset avr-168 -DEMB_SERIAL_PORT=/dev/ttyUSB0
 cmake --build --preset avr-168 --target upload
 ```
+
+You can also set port by index instead of full path (`0`, `1`, ... based on sorted `/dev/ttyUSB*` + `/dev/ttyACM*`):
+
+```sh
+cmake --preset avr-168 -DEMB_SERIAL_PORT=0
+cmake --build --preset avr-168 --target upload_monitor
+```
+
+Backward compatibility: `AVRDUDE_PORT` still works, but `EMB_SERIAL_PORT` is preferred.
 
 To override programmer or upload baud:
 
@@ -242,6 +251,12 @@ A convenience script `build.sh` is provided to simplify common tasks. It wraps t
 ./build.sh hamster      # Build, upload, and monitor hamster firmware
 ./build.sh sunflower   # Build, upload, and monitor sunflower firmware
 ./build.sh clean       # Clean all build outputs
+```
+
+If multiple USB serial devices are connected, select ports explicitly when using the helper script:
+
+```sh
+EMB_SERIAL_PORT=1 ./build.sh hamster avr-168
 ```
 
 See the script for more details or to add new targets.

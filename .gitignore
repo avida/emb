@@ -3,7 +3,7 @@ build-*/
 
 # Generated CMake files
 cmake/arduino_libs.cmake
-CMake*
+CMake*/*
 
 # VS Code generated config
 .vscode/c_cpp_properties.json

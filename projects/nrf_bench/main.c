@@ -2,6 +2,8 @@
 #include <Arduino.h>
 #include <SPI.h>
 
+#include <stdio.h>
+
 #include "RF24.h"
 
 #define CE_PIN 7
@@ -23,7 +25,8 @@ int main(void)
     }
 
     const uint8_t address[] = "abcde";
-    const char message[] = "nrf_bench";
+    uint32_t counter = 0;
+    char message[32] = {0};
 
     radio.setChannel(108);
     radio.setPALevel(RF24_PA_MIN);
@@ -33,9 +36,17 @@ int main(void)
 
     while (1)
     {
-        bool ok = radio.write(message, sizeof(message));
+        int message_len = snprintf(message, sizeof(message), "nrf%lu", static_cast<unsigned long>(counter));
+        if (message_len < 0)
+        {
+            message_len = 0;
+            message[0] = '\0';
+        }
+
+        bool ok = radio.write(message, static_cast<uint8_t>(message_len + 1));
         Serial.println(ok ? F("TX ok") : F("TX failed"));
-        delay(500);
+        counter++;
+        delay(1000);
     }
 
     return 0;

@@ -24,6 +24,7 @@ function usage() {
     echo "Available projects: ${PROJECTS[*]}"
     echo "Available platforms: ${PLATFORMS[*]} (default: avr-168, raspi for raspi project)"
     echo "Note: raspi builds only the CMake target 'raspi' and skips upload/monitor."
+    echo "Optional env var for AVR: EMB_SERIAL_PORT (path or index, e.g. /dev/ttyUSB0 or 0)"
     exit 1
 }
 
@@ -54,6 +55,17 @@ if [[ -z "$PLATFORM" ]]; then
     fi
 fi
 
+SERIAL_PORT_ARG="${EMB_SERIAL_PORT:-}"
+
+configure_preset() {
+    local preset="$1"
+    local cmd=(cmake --preset "$preset")
+    if [[ -n "$SERIAL_PORT_ARG" ]]; then
+        cmd+=("-DEMB_SERIAL_PORT=$SERIAL_PORT_ARG")
+    fi
+    "${cmd[@]}"
+}
+
 # Validate project
 if [[ ! " ${PROJECTS[@]} " =~ " $PROJECT " ]]; then
     echo "Unknown project: $PROJECT"
@@ -77,7 +89,7 @@ fi
 
 if [[ "$PROJECT" == "raspi" ]]; then
     echo "Configuring build directory for $PLATFORM..."
-    cmake --preset $PLATFORM
+    configure_preset "$PLATFORM"
 
     RASPI_CACHE_FILE="build-$PLATFORM/CMakeCache.txt"
     RASPI_RUST_TARGET=""
@@ -104,7 +116,10 @@ fi
 BUILD_DIR="build-$PLATFORM"
 if [[ ! -d "$BUILD_DIR" ]]; then
     echo "Configuring build directory for $PLATFORM..."
-    cmake --preset $PLATFORM
+    configure_preset "$PLATFORM"
+elif [[ -n "$SERIAL_PORT_ARG" ]]; then
+    echo "Reconfiguring $PLATFORM with serial port overrides..."
+    configure_preset "$PLATFORM"
 fi
 
 # Build firmware for project
