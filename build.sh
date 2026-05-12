@@ -13,7 +13,7 @@ TARGET="$2"
 
 
 # List of supported projects and platforms (update as needed)
-PROJECTS=(hamster sunflower raspi)
+PROJECTS=(hamster sunflower raspi nrf_bench)
 PLATFORMS=(avr-168 avr-328p raspi)
 
 
