@@ -261,6 +261,18 @@ EMB_SERIAL_PORT=1 ./build.sh hamster avr-168
 
 See the script for more details or to add new targets.
 
+## Helper Script: monitor.sh
+
+Use `monitor.sh` to open a serial port directly without running the full build/upload flow.
+It accepts either a full device path or a numeric port index and an optional baud rate.
+
+```sh
+./monitor.sh 0
+./monitor.sh /dev/ttyUSB1 115200
+```
+
+Port indexes are resolved from the sorted list of `/dev/ttyACM*` and `/dev/ttyUSB*` devices.
+
 ## Notes
 
 - For ARM targets, you typically need a startup file and linker script for your specific MCU.
