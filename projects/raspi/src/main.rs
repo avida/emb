@@ -76,7 +76,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     println!("Selected interrupt pin: GPIO{}", interrupt_pin);
     println!();
     let mut pin = gpio.get(interrupt_pin)?.into_input();
-    pin.set_interrupt(Trigger::Both)?;
+    pin.set_interrupt(Trigger::Both, Some(Duration::from_millis(0)))?;
 
     println!();
     println!(
@@ -97,7 +97,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                         now.as_secs(),
                         now.subsec_millis(),
                         interrupt_pin,
-                        level_to_str(level)
+                        pin.read()
                     );
                 }
                 Ok(None) => {}

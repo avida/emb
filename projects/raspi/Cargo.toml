@@ -4,5 +4,5 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-rppal = "0.17"
+rppal = "0.22.1"
 nrf24l01 = "0.2.0"
