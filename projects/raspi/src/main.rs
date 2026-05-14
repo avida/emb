@@ -63,7 +63,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         retry_delay: 2,
         ..Default::default()
     };
-    let mut device = NRF24L01::new(27, 0).unwrap();
+    let mut device = NRF24L01::new(22, 0).unwrap();
     let message = b"sendtest";
 
     device.configure(&OperatingMode::TX(config)).unwrap();
