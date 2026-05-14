@@ -203,11 +203,17 @@ if(EMB_TARGET_FAMILY STREQUAL "avr")
   endforeach()
 
   set(AVRDUDE_BAUD "19200" CACHE STRING "AVRDUDE baud rate")
+  if(AVR_MCU STREQUAL "atmega168")
+    set(AVRDUDE_BAUD "19200" CACHE STRING "AVRDUDE baud rate for atmega168")
+  elseif(AVR_MCU STREQUAL "atmega328p")
+    set(AVRDUDE_BAUD "57600" CACHE STRING "AVRDUDE baud rate for atmega328p")
+  endif()
   set(AVRDUDE_PROGRAMMER "avrisp" CACHE STRING "AVRDUDE programmer type")
   set(AVRDUDE_PORT "" CACHE STRING "[Deprecated] AVRDUDE port (use EMB_SERIAL_PORT)")
   set(EMB_SERIAL_PORT "" CACHE STRING "Serial port for upload and monitor. Accepts full path (/dev/ttyUSB0) or numeric index (0, 1, ...)")
   set(SERIAL_TOOL "stty" CACHE STRING "Serial monitor tool (stty, screen, picocom, miniterm)")
   set(SERIAL_BAUD "57600" CACHE STRING "Serial monitor baud rate")
+
 
   get_filename_component(_arduino_core_dir "${ARDUINO_CORE_PATH}" DIRECTORY)
   get_filename_component(_arduino_avr_dir "${_arduino_core_dir}" DIRECTORY)
