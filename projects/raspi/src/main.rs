@@ -66,14 +66,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut device = NRF24L01::new(27, 0).unwrap();
     let message = b"sendtest";
 
-    // Use BCM22 as manual CSN (chip select) pin: high when idle, low during SPI ops
-    let mut csn = gpio.get(22)?.into_output();
-    csn.set_high();
-
-    csn.set_low();
     device.configure(&OperatingMode::TX(config)).unwrap();
     device.flush_output().unwrap();
-    csn.set_high();
 
     dump_gpio_states(&gpio);
     println!("GPIO dump done");
@@ -82,7 +76,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     println!("Selected interrupt pin: GPIO{}", interrupt_pin);
     println!();
     let mut pin = gpio.get(interrupt_pin)?.into_input();
-    pin.set_interrupt(Trigger::Both)?;
+    pin.set_interrupt(Trigger::Both, Some(Duration::from_millis(0)))?;
 
     println!();
     println!(
@@ -103,7 +97,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                         now.as_secs(),
                         now.subsec_millis(),
                         interrupt_pin,
-                        level_to_str(level)
+                        pin.read()
                     );
                 }
                 Ok(None) => {}
@@ -114,11 +108,10 @@ fn main() -> Result<(), Box<dyn Error>> {
             }
         }
     });
+
     let nrf_thread_handle = thread::spawn(move || {
-        let mut csn = csn;
         let mut device = device;
         loop {
-            csn.set_low();
             device.push(0, message).unwrap();
             match device.send() {
                 Ok(retries) => println!("Message sent, {} retries needed", retries),
@@ -127,8 +120,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                     device.flush_output().unwrap();
                 }
             };
-            csn.set_high();
-            sleep(Duration::from_millis(5000));
+            sleep(Duration::from_millis(2000));
         }
     });
 
