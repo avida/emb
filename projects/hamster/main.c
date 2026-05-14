@@ -1,10 +1,9 @@
-
-
 #include <Arduino.h>
 #include <avr/interrupt.h>
 
 #include <SPI.h>
 #include "RF24.h"
+
 #define CE_PIN 7
 #define CSN_PIN 8
 // instantiate an object for the nRF24L01 transceiver
@@ -23,40 +22,35 @@ volatile uint8_t ignore_toggle = 0;
 // is needed because we ignore every second trigger to get accurate count of
 // revolutions, so if wheel stops for a long time we need to reset that logic to
 // avoid missing first trigger when it starts moving again.
-const uint32_t PAUSE_THRESHOLD = 2500; // ms, adjust as needed
+const uint32_t PAUSE_THRESHOLD = 2000; // ms, adjust as needed
 
 void handleInterrupt()
 {
-    if (digitalRead(INTERRUPT_PIN) == HIGH)
+    cli();
+    uint32_t now = timer_ms;
+
+    elapsed = now - last_peak_time; // Time between two toggles
+    // Reset ignore logic if pause too lgtn
+    if (elapsed >= PAUSE_THRESHOLD)
     {
-        uint32_t now = timer_ms;
-        elapsed = now - last_peak_time;
-        if (elapsed > PAUSE_THRESHOLD)
-        {
-            elapsed = 0;
-        }
-        last_peak_time = now;
-        if (ignore_toggle == 0)
-        {
-            pin_high = true;
-            interrupt_count++;
-        }
-        // When magnet passing through reed switch, it causes two triggers (one for left and one for right plate).
-        // We want to ignore every second trigger to get accurate count of revolutions.
-        ignore_toggle ^= 1; // Toggle between 0 and 1
+        ignore_toggle = 0;
     }
+
+    // Count every two toggles
+    if (ignore_toggle == 1)
+    {
+        pin_high = true;
+        interrupt_count++;
+    }
+    last_peak_time = now;
+    ignore_toggle ^= 1; // Toggle between 0 and 1
+    sei();
 }
 
 // Timer1 interrupt every 1ms
 ISR(TIMER1_COMPA_vect)
 {
     timer_ms++;
-    // Reset ignore logic if pause too long so we can ignore first trigger when
-    // wheel starts moving again after a long stop.
-    if ((timer_ms - last_peak_time) > PAUSE_THRESHOLD)
-    {
-        ignore_toggle = 0;
-    }
 }
 
 void setup_timer1_1ms()
@@ -72,28 +66,16 @@ void setup_timer1_1ms()
     sei();
 }
 
-uint8_t encoded_details[43] = {0};
-
-void dumpRegData()
-{
-    for (uint8_t i = 0; i < 43; ++i)
-    {
-        Serial.print(encoded_details[i], HEX);
-        if (i < 42)
-            Serial.print(F(" "));
-    }
-}
-
 int main(void)
 {
     init();
     Serial.begin(57600);
     Serial.println("Hi");
 
-    // setup_timer1_1ms();
+    setup_timer1_1ms();
 
-    // pinMode(INTERRUPT_PIN, INPUT);
-    // attachInterrupt(digitalPinToInterrupt(INTERRUPT_PIN), handleInterrupt, RISING);
+    pinMode(INTERRUPT_PIN, INPUT);
+    attachInterrupt(digitalPinToInterrupt(INTERRUPT_PIN), handleInterrupt, RISING);
 
     if (!radio.begin())
     {
@@ -102,12 +84,11 @@ int main(void)
         {
         } // hold in infinite loop
     }
-    radio.setAutoAck(true); // Don't acknowledge arbitrary signals
-    radio.enableDynamicPayloads(); // Allow variable payload sizes
+    radio.setAutoAck(true);
+    radio.enableDynamicPayloads();
 
-    // Configure RF24 as receiver
-    uint8_t address[] = "abcde"; // Simple single-byte address for testing
-    radio.setChannel(108); // Set to a less crowded channel (2.476 GHz)
+    uint8_t address[] = "abcde";
+    radio.setChannel(108);
     radio.openReadingPipe(0, address);
     radio.setPALevel(RF24_PA_MIN);
     radio.setDataRate(RF24_1MBPS);
@@ -115,8 +96,8 @@ int main(void)
 
     Serial.println(F("RF24 receiver initialized"));
 
-    uint32_t last_print_count = 0;
     uint8_t radio_buf[32] = {0};
+    uint32_t previous_revolution_time = timer_ms;
 
     while (1)
     {
@@ -124,6 +105,8 @@ int main(void)
         if (radio.available())
         {
             uint8_t len = radio.getPayloadSize();
+            Serial.print(F("Received data length: "));
+            Serial.println(len);
             if (len > 32)
                 len = 32;
             radio.read(radio_buf, len);
@@ -137,19 +120,27 @@ int main(void)
                     Serial.print(F(" "));
             }
             Serial.println();
-        } else {
-            Serial.print(F("No radio data. "));
+        }
+        else
+        {
+            // Serial.print(F("No radio data. "));
         }
 
         if (pin_high)
         {
+            uint16_t revolution_time = 0;
+            if (timer_ms - previous_revolution_time <= PAUSE_THRESHOLD)
+            {
+                revolution_time = timer_ms - previous_revolution_time;
+            }
+            previous_revolution_time = timer_ms;
+            Serial.print("C: ");
             Serial.print(interrupt_count);
-            Serial.print(", ");
-            Serial.println(elapsed);
+            Serial.print(", T: ");
+            Serial.println(revolution_time);
+
             pin_high = false;
-            last_print_count = interrupt_count;
         }
-        delay(1000);
     }
 
     return 0;

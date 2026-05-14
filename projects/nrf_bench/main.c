@@ -1,4 +1,3 @@
-
 #include <Arduino.h>
 #include <SPI.h>
 
@@ -6,8 +5,8 @@
 
 #include "RF24.h"
 
-#define CE_PIN 7
-#define CSN_PIN 8
+#define CE_PIN 9
+#define CSN_PIN 10
 
 RF24 radio(CE_PIN, CSN_PIN);
 
@@ -29,6 +28,7 @@ int main(void)
     char message[32] = {0};
 
     radio.setChannel(108);
+    radio.enableDynamicPayloads();
     radio.setPALevel(RF24_PA_MIN);
     radio.setDataRate(RF24_1MBPS);
     radio.openWritingPipe(address);
@@ -41,6 +41,8 @@ int main(void)
         {
             message_len = 0;
             message[0] = '\0';
+        } else {
+            message_len = strlen(message);
         }
 
         bool ok = radio.write(message, static_cast<uint8_t>(message_len + 1));
